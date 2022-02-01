@@ -1,0 +1,2 @@
+rootProject.name = "File Transfer App"
+include ':app'

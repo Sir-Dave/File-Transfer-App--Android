@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">File Transfer App</string>
+    <string name="app_version">1.0.0.1-BOOT</string>
+    <string name="exit_confirmation">Press Back again to exit</string>
+    <string name="dev_name"><u>Sir Dave</u></string>
+    <string name="file_transfer_app">File Transfer App</string>
+    <string name="please_enter_the_ip_address_and_port_nshown_in_pc_server_agent">Please enter the IP address and port \nshown in PC server agent</string>
+    <string name="host_ip">Host IP:</string>
+    <string name="port">Port:</string>
+    <string name="connect">Connect</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="versionName">1.0.0</string>
+    <string name="title_activity_file_browser">FileBrowserActivity</string>
+    <!--
+    This string is used for square devices and overridden by hello_world in
+    values-round/strings.xml for round devices.
+    -->
+    <string name="hello_world">Hello Square World!</string>
+    <string name="total_files">Total Files:</string>
+    <string name="author">Author</string>
+    <string name="april_2020">© April, 2020</string>
+    <string name="connection">Connection</string>
+    <string name="exit_app">Exit App</string>
+</resources>
