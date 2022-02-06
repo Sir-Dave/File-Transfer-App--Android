@@ -4,24 +4,27 @@ import android.app.ProgressDialog
 import android.content.Context
 import android.content.Intent
 import android.os.AsyncTask
+import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 
 class Client(var context: Context) : AsyncTask<String?, Void?, Socket?>() {
+    private val TAG = "AppDebug"
     var clientSocket: Socket? = null
     private lateinit var progressDialog: ProgressDialog
     var host: String? = null
-    var port: String? = null
+    private var port: String? = null
+
     override fun doInBackground(vararg p0: String?): Socket? {
         host = p0[0]
         port = p0[1]
         try {
-            println("Trying: $host:$port")
+            Log.d(TAG, "Trying: $host:$port")
             clientSocket = Socket()
             clientSocket!!.connect(InetSocketAddress(host, port!!.toInt()), 5000)
-            println("Socket Connected")
+            Log.d(TAG, "Socket Connected")
             return clientSocket
         } catch (e: IOException) {
             e.printStackTrace()
@@ -54,7 +57,6 @@ class Client(var context: Context) : AsyncTask<String?, Void?, Socket?>() {
             } catch (e: IOException) {
                 e.printStackTrace()
             }
-            intent.putExtra("pathToExplore", "root")
             intent.putExtra("ip", host)
             intent.putExtra("port", port)
             context.startActivity(intent)
