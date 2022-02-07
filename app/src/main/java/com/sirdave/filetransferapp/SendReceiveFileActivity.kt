@@ -2,6 +2,7 @@ package com.sirdave.filetransferapp
 
 import android.Manifest
 import android.app.Activity
+import android.app.DownloadManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -10,18 +11,17 @@ import android.os.StrictMode
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
-import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+
 
 private const val REQUEST_EXTERNAL_STORAGE = 1
 class SendReceiveFileActivity : AppCompatActivity() {
@@ -77,13 +77,8 @@ class SendReceiveFileActivity : AppCompatActivity() {
             clientSocket?.connect(port?.let { InetSocketAddress(ip, it) }, 5000)
             Log.d("SendReceiveFileActivity", "Socket Connected")
 
-            /**val files = ArrayList<FileHandler>()
+            dataInputStream = DataInputStream(clientSocket?.getInputStream())
             dataOutputStream = DataOutputStream(clientSocket?.getOutputStream())
-            dataInputStream = DataInputStream(clientSocket?.getInputStream())
-            val bufferedReader = BufferedReader(InputStreamReader(dataInputStream))*/
-
-
-            dataInputStream = DataInputStream(clientSocket?.getInputStream())
             val fileNameLength = dataInputStream?.readInt()
 
             if (fileNameLength!! > 0){
@@ -101,24 +96,19 @@ class SendReceiveFileActivity : AppCompatActivity() {
         }
     }
 
-    private fun downloadFile(fileName: String?, fileContent: ByteArray?){
-        val storageState = Environment.getExternalStorageState()
-        if (storageState == Environment.MEDIA_MOUNTED) {
-            val storageDir = Environment.getExternalStorageDirectory().toString()
-
-            val dir = File("$storageDir/File Transfer App/")
-            if (!dir.exists()) {
-                dir.mkdirs()
-            }
-            val fileToDownload = File(
-                "${filesDir.path}/$fileName")
-            val fileOutputStream = FileOutputStream(fileToDownload)
+    private fun downloadFile(fileName: String?, fileContent: ByteArray?) {
+        fileName?.let {
+            val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
+            //val file = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
+            //file.createNewFile()
+            val fileOutputStream = FileOutputStream(file)
             fileOutputStream.write(fileContent)
             fileOutputStream.close()
             Log.d("SendReceiveFileActivity",
-                "File $fileName received")
+                "File $file received")
         }
     }
+
 
     private fun verifyStoragePermissions(activity: Activity?) {
         val permissions = arrayOf(
