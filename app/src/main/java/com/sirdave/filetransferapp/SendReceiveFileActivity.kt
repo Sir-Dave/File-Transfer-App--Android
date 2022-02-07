@@ -2,7 +2,6 @@ package com.sirdave.filetransferapp
 
 import android.Manifest
 import android.app.Activity
-import android.app.DownloadManager
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -15,10 +14,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.File
-import java.io.FileOutputStream
+import java.io.*
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -69,16 +65,21 @@ class SendReceiveFileActivity : AppCompatActivity() {
     }
 
     inner class MyThread: Runnable {
-        private var dataInputStream: DataInputStream? = null
-        private var dataOutputStream: DataOutputStream? = null
+        //private var dataInputStream: DataInputStream? = null
+        //private var dataOutputStream: DataOutputStream? = null
+
+        private var objectInputStream: ObjectInputStream? = null
+        private var objectOutputStream: ObjectOutputStream? = null
 
         override fun run() {
             clientSocket = Socket()
             clientSocket?.connect(port?.let { InetSocketAddress(ip, it) }, 5000)
             Log.d("SendReceiveFileActivity", "Socket Connected")
 
-            dataInputStream = DataInputStream(clientSocket?.getInputStream())
+            /*dataInputStream = DataInputStream(clientSocket?.getInputStream())
             dataOutputStream = DataOutputStream(clientSocket?.getOutputStream())
+
+
             val fileNameLength = dataInputStream?.readInt()
 
             if (fileNameLength!! > 0){
@@ -92,7 +93,36 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     dataInputStream?.readFully(fileContent, 0, fileContentLength)
                     downloadFile(filename, fileContent)
                 }
+            }*/
+
+            objectInputStream = ObjectInputStream(clientSocket?.getInputStream())
+            objectOutputStream = ObjectOutputStream(clientSocket?.getOutputStream())
+
+            val receivedFile = objectInputStream?.readObject() as MyFile
+
+            val bytesResult: ByteArray?
+            val byteBuffer = ByteArrayOutputStream()
+            val bufferSize = 1024
+            val buffer = ByteArray(bufferSize)
+            try {
+                var len: Int
+                while (objectInputStream!!.read(buffer).also { len = it } != -1) {
+                    byteBuffer.write(buffer, 0, len)
+                }
+                bytesResult = byteBuffer.toByteArray()
+                downloadFile(receivedFile.filename, bytesResult)
             }
+            catch (ex: IOException){
+                ex.printStackTrace()
+            }
+            /**finally {
+                    // close the stream
+                    try {
+                        byteBuffer.close()
+                    } catch (ignored: IOException) { /* do nothing */
+                    }
+                }
+            }*/
         }
     }
 
