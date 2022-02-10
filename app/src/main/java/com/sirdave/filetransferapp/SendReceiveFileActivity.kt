@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.StrictMode
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -17,11 +18,7 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.net.toFile
-import java.io.DataInputStream
-import java.io.DataOutputStream
-import java.io.File
-import java.io.FileOutputStream
+import java.io.*
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -35,6 +32,8 @@ class SendReceiveFileActivity : AppCompatActivity() {
     var clientSocket: Socket? = null
     private lateinit var myThread: MyThread
     private lateinit var sendButton: Button
+    private var dataInputStream: DataInputStream? = null
+    private var dataOutputStream: DataOutputStream? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,7 +53,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
             val intent = Intent(Intent.ACTION_GET_CONTENT)
             intent.type = "*/*"
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-            //intent.addCategory(Intent.CATEGORY_OPENABLE)
             startActivityForResult(Intent.createChooser(intent, "Choose Files"), CHOOSE_FILES)
         }
 
@@ -70,22 +68,54 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     val count = data.clipData!!.itemCount
                     var currentItem = 0
                     while (currentItem < count) {
-                        val imageUri: Uri = data.clipData!!.getItemAt(currentItem).uri
-                        Log.d(TAG, "imageUri is $imageUri")
+                        val uri = data.clipData!!.getItemAt(currentItem).uri
+                        val fileInfo = getDataFromUri(uri)
+                        sendFiles(uri, fileInfo)
 
                         currentItem += 1
                     }
                 }
                 else if (data.data != null) {
-                    val imageUri = data.data!!
-                    Log.d(TAG, "imageUri is $imageUri")
+                    val uri = data.data!!
+                    val fileInfo = getDataFromUri(uri)
+                    sendFiles(uri, fileInfo)
+                    //Log.d(TAG, "file name is ${pair.first}")
+                    //Log.d(TAG, "file size is ${pair.second}")
                 }
             }
         }
     }
 
-    private fun getFileFRomUri(uri: Uri){
-        val inputStream = contentResolver.openInputStream(uri)
+    private fun getDataFromUri(uri: Uri): Pair<String, Long>{
+        val cursor = contentResolver.query(uri, null, null,
+            null, null)
+        val nameIndex = cursor?.getColumnIndex(OpenableColumns.DISPLAY_NAME)!!
+        val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+        cursor.moveToFirst()
+        val name = cursor.getString(nameIndex)
+        val size = cursor.getLong(sizeIndex)
+        cursor.close()
+        return Pair(name, size)
+    }
+
+    private fun sendFiles(uri: Uri, fileInfo: Pair<String, Long>){
+        try {
+            val inputStream = contentResolver.openInputStream(uri)
+            //val fileInputStream = FileInputStream(file.absolutePath)
+            val fileName = fileInfo.first
+            println("File name is $fileName")
+            val fileNameBytes = fileName.toByteArray()
+            val fileContentBytes = ByteArray(fileInfo.second.toInt())
+            //val num: Int = fileInputStream.read(fileContentBytes)
+            inputStream!!.read(fileContentBytes)
+            dataOutputStream?.writeInt(fileNameBytes.size)
+            dataOutputStream?.write(fileNameBytes)
+            dataOutputStream?.writeInt(fileContentBytes.size)
+            dataOutputStream?.write(fileContentBytes)
+            dataOutputStream?.flush()
+        } catch (exception: IOException) {
+            exception.printStackTrace()
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -111,8 +141,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
     }
 
     inner class MyThread: Runnable {
-        private var dataInputStream: DataInputStream? = null
-        private var dataOutputStream: DataOutputStream? = null
 
         override fun run() {
             clientSocket = Socket()
