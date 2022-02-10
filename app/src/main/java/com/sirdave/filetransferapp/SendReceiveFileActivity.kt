@@ -2,7 +2,9 @@ package com.sirdave.filetransferapp
 
 import android.Manifest
 import android.app.Activity
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
@@ -10,21 +12,29 @@ import android.os.StrictMode
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.widget.Button
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import java.io.*
+import androidx.core.net.toFile
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 
 
 private const val REQUEST_EXTERNAL_STORAGE = 1
+private const val CHOOSE_FILES = 1000
+private const val TAG = "SendReceiveFileActivity"
 class SendReceiveFileActivity : AppCompatActivity() {
     private var ip: String? = null
     private var port: Int? = null
     var clientSocket: Socket? = null
     private lateinit var myThread: MyThread
+    private lateinit var sendButton: Button
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,8 +48,44 @@ class SendReceiveFileActivity : AppCompatActivity() {
 
         verifyStoragePermissions(this)
 
+        sendButton = findViewById(R.id.btnSend)
+
+        sendButton.setOnClickListener {
+            val intent = Intent(Intent.ACTION_GET_CONTENT)
+            intent.type = "*/*"
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            //intent.addCategory(Intent.CATEGORY_OPENABLE)
+            startActivityForResult(Intent.createChooser(intent, "Choose Files"), CHOOSE_FILES)
+        }
+
         myThread = MyThread()
         Thread(myThread).start()
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CHOOSE_FILES) {
+            if (resultCode == RESULT_OK) {
+                if (data!!.clipData != null) {
+                    val count = data.clipData!!.itemCount
+                    var currentItem = 0
+                    while (currentItem < count) {
+                        val imageUri: Uri = data.clipData!!.getItemAt(currentItem).uri
+                        Log.d(TAG, "imageUri is $imageUri")
+
+                        currentItem += 1
+                    }
+                }
+                else if (data.data != null) {
+                    val imageUri = data.data!!
+                    Log.d(TAG, "imageUri is $imageUri")
+                }
+            }
+        }
+    }
+
+    private fun getFileFRomUri(uri: Uri){
+        val inputStream = contentResolver.openInputStream(uri)
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -71,7 +117,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
         override fun run() {
             clientSocket = Socket()
             clientSocket?.connect(port?.let { InetSocketAddress(ip, it) }, 5000)
-            Log.d("SendReceiveFileActivity", "Socket Connected")
+            Log.d(TAG, "Socket Connected")
 
             dataInputStream = DataInputStream(clientSocket?.getInputStream())
             dataOutputStream = DataOutputStream(clientSocket?.getOutputStream())
@@ -103,8 +149,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
             val fileOutputStream = FileOutputStream(file)
             fileOutputStream.write(fileContent)
             fileOutputStream.close()
-            Log.d("SendReceiveFileActivity",
-                "File $file received")
+            Log.d(TAG, "File $file received")
         }
     }
 
