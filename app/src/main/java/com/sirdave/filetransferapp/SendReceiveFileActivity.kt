@@ -79,8 +79,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     val uri = data.data!!
                     val fileInfo = getDataFromUri(uri)
                     sendFiles(uri, fileInfo)
-                    //Log.d(TAG, "file name is ${pair.first}")
-                    //Log.d(TAG, "file size is ${pair.second}")
                 }
             }
         }
@@ -103,7 +101,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
             val inputStream = contentResolver.openInputStream(uri)
             //val fileInputStream = FileInputStream(file.absolutePath)
             val fileName = fileInfo.first
-            println("File name is $fileName")
             val fileNameBytes = fileName.toByteArray()
             val fileContentBytes = ByteArray(fileInfo.second.toInt())
             //val num: Int = fileInputStream.read(fileContentBytes)
