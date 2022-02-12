@@ -100,12 +100,10 @@ class SendReceiveFileActivity : AppCompatActivity() {
     private fun sendFiles(uri: Uri, fileInfo: Pair<String, Long>){
         try {
             val inputStream = contentResolver.openInputStream(uri)
-            //val fileInputStream = FileInputStream(file.absolutePath)
             val fileName = fileInfo.first
             Log.d(TAG, "File $fileName sent")
             val fileNameBytes = fileName.toByteArray(Charsets.UTF_8)
             val fileContentBytes = ByteArray(fileInfo.second.toInt())
-            //val num: Int = fileInputStream.read(fileContentBytes)
             inputStream!!.read(fileContentBytes)
             dataOutputStream?.writeInt(fileNameBytes.size)
             dataOutputStream?.write(fileNameBytes)
@@ -172,8 +170,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
     private fun downloadFile(fileName: String?, fileContent: ByteArray?) {
         fileName?.let {
             val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
-            //val file = File(getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), fileName)
-            //file.createNewFile()
             val fileOutputStream = FileOutputStream(file)
             fileOutputStream.write(fileContent)
             fileOutputStream.close()
