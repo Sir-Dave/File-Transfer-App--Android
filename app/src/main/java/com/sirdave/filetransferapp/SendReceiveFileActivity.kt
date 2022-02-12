@@ -67,6 +67,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
                 if (data!!.clipData != null) {
                     val count = data.clipData!!.itemCount
                     var currentItem = 0
+                    dataOutputStream?.writeInt(count) //??
                     while (currentItem < count) {
                         val uri = data.clipData!!.getItemAt(currentItem).uri
                         val fileInfo = getDataFromUri(uri)
@@ -101,7 +102,8 @@ class SendReceiveFileActivity : AppCompatActivity() {
             val inputStream = contentResolver.openInputStream(uri)
             //val fileInputStream = FileInputStream(file.absolutePath)
             val fileName = fileInfo.first
-            val fileNameBytes = fileName.toByteArray()
+            Log.d(TAG, "File $fileName sent")
+            val fileNameBytes = fileName.toByteArray(Charsets.UTF_8)
             val fileContentBytes = ByteArray(fileInfo.second.toInt())
             //val num: Int = fileInputStream.read(fileContentBytes)
             inputStream!!.read(fileContentBytes)
@@ -110,6 +112,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
             dataOutputStream?.writeInt(fileContentBytes.size)
             dataOutputStream?.write(fileContentBytes)
             dataOutputStream?.flush()
+
         } catch (exception: IOException) {
             exception.printStackTrace()
         }
