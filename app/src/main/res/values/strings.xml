@@ -23,4 +23,7 @@
     <string name="connection">Connection</string>
     <string name="exit_app">Exit App</string>
     <string name="send_files">Send Files</string>
+    <string name="file_name">File Name</string>
+    <string name="file_size">File Size</string>
+    <string name="filepath">File Path</string>
 </resources>

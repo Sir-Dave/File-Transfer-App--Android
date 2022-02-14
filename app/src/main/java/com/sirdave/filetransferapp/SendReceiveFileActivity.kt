@@ -19,6 +19,8 @@ import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import java.io.*
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -33,8 +35,10 @@ class SendReceiveFileActivity : AppCompatActivity() {
     var clientSocket: Socket? = null
     private lateinit var myThread: MyThread
     private lateinit var sendButton: Button
+    private lateinit var recyclerView: RecyclerView
     private var dataInputStream: DataInputStream? = null
     private var dataOutputStream: DataOutputStream? = null
+    private val allFiles = ArrayList<FileHandler>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +51,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
         port = intent.getStringExtra("port")?.toInt()
 
         verifyStoragePermissions(this)
+        recyclerView = findViewById(R.id.file_recycler_view)
 
         sendButton = findViewById(R.id.btnSend)
 
@@ -61,6 +66,17 @@ class SendReceiveFileActivity : AppCompatActivity() {
         Thread(myThread).start()
     }
 
+    private fun setUpRecyclerView(fileList: List<FileHandler>){
+        val adapter = FileRecyclerAdapter(fileList)
+        recyclerView.adapter = adapter
+        recyclerView.setHasFixedSize(true)
+
+        val layoutManager = LinearLayoutManager(this)
+        layoutManager.orientation = RecyclerView.VERTICAL
+        recyclerView.layoutManager = layoutManager
+        adapter.notifyItemInserted(allFiles.size - 1)
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == CHOOSE_FILES) {
@@ -68,7 +84,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
                 if (data!!.clipData != null) {
                     val count = data.clipData!!.itemCount
                     var currentItem = 0
-                    dataOutputStream?.writeInt(count) //??
+                    dataOutputStream?.writeInt(count)
                     while (currentItem < count) {
                         val uri = data.clipData!!.getItemAt(currentItem).uri
                         val fileInfo = getDataFromUri(uri)
@@ -176,6 +192,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
                         //finish()
                     }
                 }
+                setUpRecyclerView(allFiles)
             }
         }
     }
@@ -185,8 +202,13 @@ class SendReceiveFileActivity : AppCompatActivity() {
             val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
             val fileOutputStream = FileOutputStream(file)
             fileOutputStream.write(fileContent)
+
+            val fileHandler = FileHandler(fileName, fileContent!!.size, file.absolutePath)
+            allFiles.add(fileHandler)
+
             fileOutputStream.close()
-            Log.d(TAG, "File $file received")
+            for (i in allFiles)
+                println("File ${i.name} at ${i.path}")
         }
     }
 

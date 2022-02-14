@@ -6,9 +6,19 @@
     android:layout_height="match_parent"
     tools:context=".SendReceiveFileActivity">
 
+    <androidx.recyclerview.widget.RecyclerView
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_width="match_parent"
+        android:id="@+id/file_recycler_view"
+        android:layout_height="match_parent">
+
+    </androidx.recyclerview.widget.RecyclerView>
+
     <Button
         android:id="@+id/btnSend"
-        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
@@ -16,6 +26,7 @@
         android:layout_height="wrap_content"
         android:background="@drawable/button_bg"
         android:textColor="@color/colorWhite"
+        android:layout_marginBottom="10dp"
         android:layout_marginTop="30dp"
         android:text="@string/send_files"/>
 
