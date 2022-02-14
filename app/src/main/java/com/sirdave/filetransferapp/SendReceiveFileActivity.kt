@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -149,18 +150,30 @@ class SendReceiveFileActivity : AppCompatActivity() {
             dataOutputStream = DataOutputStream(clientSocket?.getOutputStream())
 
             while (true){
-                val fileNameLength = dataInputStream?.readInt()
+                try{
+                    val fileNameLength = dataInputStream?.readInt()
 
-                if (fileNameLength!! > 0){
-                    val fileNameBytes = ByteArray(fileNameLength)
-                    dataInputStream?.readFully(fileNameBytes, 0, fileNameLength)
-                    val filename = String(fileNameBytes)
+                    if (fileNameLength!! > 0){
+                        val fileNameBytes = ByteArray(fileNameLength)
+                        dataInputStream?.readFully(fileNameBytes, 0, fileNameLength)
+                        val filename = String(fileNameBytes)
 
-                    val fileContentLength = dataInputStream?.readInt()
-                    if (fileContentLength!! > 0){
-                        val fileContent = ByteArray(fileContentLength)
-                        dataInputStream?.readFully(fileContent, 0, fileContentLength)
-                        downloadFile(filename, fileContent)
+                        val fileContentLength = dataInputStream?.readInt()
+                        if (fileContentLength!! > 0){
+                            val fileContent = ByteArray(fileContentLength)
+                            dataInputStream?.readFully(fileContent, 0, fileContentLength)
+                            downloadFile(filename, fileContent)
+                        }
+                    }
+                }
+                catch(ex: EOFException){
+                    ex.printStackTrace()
+                    runOnUiThread {
+                        Toast.makeText(this@SendReceiveFileActivity,
+                            "Connection reset", Toast.LENGTH_LONG).show()
+                        //startActivity(Intent(this@SendReceiveFileActivity,
+                        //    MainActivity::class.java))
+                        //finish()
                     }
                 }
             }
