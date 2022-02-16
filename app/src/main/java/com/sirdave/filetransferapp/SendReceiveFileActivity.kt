@@ -67,6 +67,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
     }
 
     private fun setUpRecyclerView(fileList: List<FileHandler>){
+        Log.d(TAG, "setUpRecyclerView started")
         val adapter = FileRecyclerAdapter(fileList)
         recyclerView.adapter = adapter
         recyclerView.setHasFixedSize(true)
@@ -179,6 +180,9 @@ class SendReceiveFileActivity : AppCompatActivity() {
                             val fileContent = ByteArray(fileContentLength)
                             dataInputStream?.readFully(fileContent, 0, fileContentLength)
                             downloadFile(filename, fileContent)
+                            runOnUiThread {
+                                setUpRecyclerView(allFiles)
+                            }
                         }
                     }
                 }
@@ -192,7 +196,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
                         //finish()
                     }
                 }
-                setUpRecyclerView(allFiles)
             }
         }
     }
