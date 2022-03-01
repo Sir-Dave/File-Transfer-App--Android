@@ -87,7 +87,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
                 if (data!!.clipData != null) {
                     val count = data.clipData!!.itemCount
                     var currentItem = 0
-                    dataOutputStream?.writeInt(count)
                     while (currentItem < count) {
                         val uri = data.clipData!!.getItemAt(currentItem).uri
                         val fileInfo = getDataFromUri(uri)
@@ -216,9 +215,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     runOnUiThread {
                         Toast.makeText(this@SendReceiveFileActivity,
                             "Connection reset", Toast.LENGTH_LONG).show()
-                        //startActivity(Intent(this@SendReceiveFileActivity,
-                        //    MainActivity::class.java))
-                        //finish()
                     }
                 }
             }
