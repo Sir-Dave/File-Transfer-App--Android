@@ -24,6 +24,8 @@ import androidx.recyclerview.widget.RecyclerView
 import java.io.*
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.nio.charset.StandardCharsets
+import kotlin.math.min
 
 
 private const val REQUEST_EXTERNAL_STORAGE = 1
@@ -115,19 +117,29 @@ class SendReceiveFileActivity : AppCompatActivity() {
         return Pair(name, size)
     }
 
+
     private fun sendFiles(uri: Uri, fileInfo: Pair<String, Long>){
         try {
             val inputStream = contentResolver.openInputStream(uri)
+            val bytesIn = ByteArray(4096)
+            var read: Int
+
             val fileName = fileInfo.first
             Log.d(TAG, "File $fileName sent")
+
+            // send file name
             val fileNameBytes = fileName.toByteArray(Charsets.UTF_8)
-            val fileContentBytes = ByteArray(fileInfo.second.toInt())
-            inputStream!!.read(fileContentBytes)
-            dataOutputStream?.writeInt(fileNameBytes.size)
-            dataOutputStream?.write(fileNameBytes)
-            dataOutputStream?.writeInt(fileContentBytes.size)
-            dataOutputStream?.write(fileContentBytes)
-            dataOutputStream?.flush()
+            dataOutputStream!!.writeInt(fileNameBytes.size)
+            dataOutputStream!!.write(fileNameBytes)
+
+            // send file size
+            dataOutputStream!!.writeLong(fileInfo.second)
+
+            while (inputStream!!.read(bytesIn).also { read = it } != -1) {
+                dataOutputStream!!.write(bytesIn, 0, read)
+                dataOutputStream!!.flush()
+            }
+            inputStream.close()
 
         } catch (exception: IOException) {
             exception.printStackTrace()
@@ -173,16 +185,29 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     if (fileNameLength!! > 0){
                         val fileNameBytes = ByteArray(fileNameLength)
                         dataInputStream?.readFully(fileNameBytes, 0, fileNameLength)
-                        val filename = String(fileNameBytes)
+                        val filename = String(fileNameBytes, StandardCharsets.UTF_8)
 
-                        val fileContentLength = dataInputStream?.readInt()
-                        if (fileContentLength!! > 0){
-                            val fileContent = ByteArray(fileContentLength)
-                            dataInputStream?.readFully(fileContent, 0, fileContentLength)
-                            downloadFile(filename, fileContent)
-                            runOnUiThread {
-                                setUpRecyclerView(allFiles)
-                            }
+                        var bytes = 0
+
+                        val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename)
+                        val fileOutputStream = FileOutputStream(file)
+
+
+                        var size = dataInputStream!!.readLong() // read file size
+
+                        val buffer = ByteArray(4096)
+                        while (size > 0 && dataInputStream!!.read(buffer, 0,
+                                min(buffer.size.toLong(), size).toInt()).also { bytes = it } != -1) {
+                            fileOutputStream.write(buffer, 0, bytes)
+                            size -= bytes // read up to file size
+                        }
+
+                        val fileHandler = FileHandler(filename, size.toInt(), file.absolutePath)
+                        allFiles.add(fileHandler)
+                        fileOutputStream.close()
+
+                        runOnUiThread {
+                            setUpRecyclerView(allFiles)
                         }
                     }
                 }
@@ -197,21 +222,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     }
                 }
             }
-        }
-    }
-
-    private fun downloadFile(fileName: String?, fileContent: ByteArray?) {
-        fileName?.let {
-            val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), fileName)
-            val fileOutputStream = FileOutputStream(file)
-            fileOutputStream.write(fileContent)
-
-            val fileHandler = FileHandler(fileName, fileContent!!.size, file.absolutePath)
-            allFiles.add(fileHandler)
-
-            fileOutputStream.close()
-            for (i in allFiles)
-                println("File ${i.name} at ${i.path}")
         }
     }
 
