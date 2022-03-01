@@ -13,7 +13,9 @@ import android.provider.OpenableColumns
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.Button
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -25,7 +27,9 @@ import java.io.*
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.nio.charset.StandardCharsets
+import java.text.DecimalFormat
 import kotlin.math.min
+import kotlin.math.round
 
 
 private const val REQUEST_EXTERNAL_STORAGE = 1
@@ -38,9 +42,11 @@ class SendReceiveFileActivity : AppCompatActivity() {
     private lateinit var myThread: MyThread
     private lateinit var sendButton: Button
     private lateinit var recyclerView: RecyclerView
+    private lateinit var progressBar: ProgressBar
     private var dataInputStream: DataInputStream? = null
     private var dataOutputStream: DataOutputStream? = null
     private val allFiles = ArrayList<FileHandler>()
+    private var timeSentTaken = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,6 +60,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
 
         verifyStoragePermissions(this)
         recyclerView = findViewById(R.id.file_recycler_view)
+        progressBar = findViewById(R.id.progressBar)
 
         sendButton = findViewById(R.id.btnSend)
 
@@ -68,7 +75,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
         Thread(myThread).start()
     }
 
-    private fun setUpRecyclerView(fileList: List<FileHandler>){
+    private fun setUpRecyclerView(fileList: List<FileHandler>) {
         Log.d(TAG, "setUpRecyclerView started")
         val adapter = FileRecyclerAdapter(fileList)
         recyclerView.adapter = adapter
@@ -90,23 +97,29 @@ class SendReceiveFileActivity : AppCompatActivity() {
                     while (currentItem < count) {
                         val uri = data.clipData!!.getItemAt(currentItem).uri
                         val fileInfo = getDataFromUri(uri)
-                        sendFiles(uri, fileInfo)
+                        sendFile(uri, fileInfo)
 
                         currentItem += 1
                     }
+                    showFileTransferCompletedDialog(count, timeSentTaken)
+                    timeSentTaken = 0.0 // reset the time taken to 0
                 }
                 else if (data.data != null) {
                     val uri = data.data!!
                     val fileInfo = getDataFromUri(uri)
-                    sendFiles(uri, fileInfo)
+                    sendFile(uri, fileInfo)
+                    showFileTransferCompletedDialog(1, timeSentTaken)
+                    timeSentTaken = 0.0 // reset the time taken to 0
                 }
             }
         }
     }
 
-    private fun getDataFromUri(uri: Uri): Pair<String, Long>{
-        val cursor = contentResolver.query(uri, null, null,
-            null, null)
+    private fun getDataFromUri(uri: Uri): Pair<String, Long> {
+        val cursor = contentResolver.query(
+            uri, null, null,
+            null, null
+        )
         val nameIndex = cursor?.getColumnIndex(OpenableColumns.DISPLAY_NAME)!!
         val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
         cursor.moveToFirst()
@@ -117,13 +130,17 @@ class SendReceiveFileActivity : AppCompatActivity() {
     }
 
 
-    private fun sendFiles(uri: Uri, fileInfo: Pair<String, Long>){
+    private fun sendFile(uri: Uri, fileInfo: Pair<String, Long>) {
         try {
             val inputStream = contentResolver.openInputStream(uri)
             val bytesIn = ByteArray(4096)
             var read: Int
 
+            var total = 0
+            var progress: Double
+
             val fileName = fileInfo.first
+            val startTime = System.currentTimeMillis()
             Log.d(TAG, "File $fileName sent")
 
             // send file name
@@ -136,9 +153,22 @@ class SendReceiveFileActivity : AppCompatActivity() {
 
             while (inputStream!!.read(bytesIn).also { read = it } != -1) {
                 dataOutputStream!!.write(bytesIn, 0, read)
+
+                total += read
+                progress = (total * 100.0 / fileInfo.second)
+                runOnUiThread {
+                    updateProgressBar(round(progress).toInt())
+                }
+
                 dataOutputStream!!.flush()
+
+                val estimatedTime = System.currentTimeMillis() - startTime
+                val estimatedTimeInSecs = estimatedTime / 1000.0
+                timeSentTaken += estimatedTimeInSecs
             }
             inputStream.close()
+            hideProgressBar()
+
 
         } catch (exception: IOException) {
             exception.printStackTrace()
@@ -167,7 +197,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
         return true
     }
 
-    inner class MyThread: Runnable {
+    inner class MyThread : Runnable {
 
         override fun run() {
             clientSocket = Socket()
@@ -177,28 +207,41 @@ class SendReceiveFileActivity : AppCompatActivity() {
             dataInputStream = DataInputStream(clientSocket?.getInputStream())
             dataOutputStream = DataOutputStream(clientSocket?.getOutputStream())
 
-            while (true){
-                try{
+            while (true) {
+                try {
                     val fileNameLength = dataInputStream?.readInt()
 
-                    if (fileNameLength!! > 0){
+                    if (fileNameLength!! > 0) {
                         val fileNameBytes = ByteArray(fileNameLength)
                         dataInputStream?.readFully(fileNameBytes, 0, fileNameLength)
                         val filename = String(fileNameBytes, StandardCharsets.UTF_8)
 
                         var bytes = 0
 
-                        val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), filename)
+                        val file = File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            filename
+                        )
                         val fileOutputStream = FileOutputStream(file)
 
-
                         var size = dataInputStream!!.readLong() // read file size
+                        val originalSize = size
+
+                        var total = 0
+                        var progress: Double
 
                         val buffer = ByteArray(4096)
                         while (size > 0 && dataInputStream!!.read(buffer, 0,
-                                min(buffer.size.toLong(), size).toInt()).also { bytes = it } != -1) {
+                                min(buffer.size.toLong(), size).toInt()
+                            ).also { bytes = it } != -1) {
                             fileOutputStream.write(buffer, 0, bytes)
                             size -= bytes // read up to file size
+
+                            total += bytes
+                            progress = (total * 100.0 / originalSize)
+                            runOnUiThread {
+                                updateProgressBar(round(progress).toInt())
+                            }
                         }
 
                         val fileHandler = FileHandler(filename, size.toInt(), file.absolutePath)
@@ -206,15 +249,17 @@ class SendReceiveFileActivity : AppCompatActivity() {
                         fileOutputStream.close()
 
                         runOnUiThread {
-                            setUpRecyclerView(allFiles)
+                            setUpRecyclerView(allFiles.asReversed())
+                            hideProgressBar()
                         }
                     }
-                }
-                catch(ex: EOFException){
+                } catch (ex: EOFException) {
                     ex.printStackTrace()
                     runOnUiThread {
-                        Toast.makeText(this@SendReceiveFileActivity,
-                            "Connection reset", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@SendReceiveFileActivity,
+                            "Connection reset", Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             }
@@ -228,11 +273,38 @@ class SendReceiveFileActivity : AppCompatActivity() {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         )
 
-        val permission = ActivityCompat.checkSelfPermission(activity!!,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        val permission = ActivityCompat.checkSelfPermission(
+            activity!!,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+        )
 
         if (permission != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(activity, permissions, REQUEST_EXTERNAL_STORAGE)
         }
+    }
+
+    private fun hideProgressBar() {
+        progressBar.visibility = View.GONE
+    }
+
+    private fun updateProgressBar(progress: Int){
+        if (progressBar.visibility == View.GONE){
+            progressBar.visibility = View.VISIBLE
+        }
+        progressBar.progress = progress
+    }
+
+    private fun showFileTransferCompletedDialog(number: Int, timeTaken: Double){
+        val df = DecimalFormat("0.00");
+        AlertDialog.Builder(this)
+            .setTitle("Files Sent")
+            .setMessage("""
+                $number file(s) successfully transferred
+                Time Taken: ${df.format(timeTaken)}s
+                """.trimIndent())
+            .setIcon(R.drawable.success)
+            .setPositiveButton("OK") { dialog, _ ->
+                dialog.dismiss()
+            }.show()
     }
 }
