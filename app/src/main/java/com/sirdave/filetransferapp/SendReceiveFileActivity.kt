@@ -16,6 +16,7 @@ import android.view.MenuItem
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -43,6 +44,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
     private lateinit var sendButton: Button
     private lateinit var recyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
+    private lateinit var progressPercentage: TextView
     private var dataInputStream: DataInputStream? = null
     private var dataOutputStream: DataOutputStream? = null
     private val allFiles = ArrayList<FileHandler>()
@@ -61,6 +63,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
         verifyStoragePermissions(this)
         recyclerView = findViewById(R.id.file_recycler_view)
         progressBar = findViewById(R.id.progressBar)
+        progressPercentage = findViewById(R.id.progressPercentage)
 
         sendButton = findViewById(R.id.btnSend)
 
@@ -285,13 +288,20 @@ class SendReceiveFileActivity : AppCompatActivity() {
 
     private fun hideProgressBar() {
         progressBar.visibility = View.GONE
+        progressPercentage.visibility = View.GONE
     }
 
     private fun updateProgressBar(progress: Int){
         if (progressBar.visibility == View.GONE){
             progressBar.visibility = View.VISIBLE
         }
+
+        if (progressPercentage.visibility == View.GONE){
+            progressPercentage.visibility = View.VISIBLE
+        }
         progressBar.progress = progress
+        progressPercentage.text = resources.getString(R.string.processing,
+            "$progress%")
     }
 
     private fun showFileTransferCompletedDialog(number: Int, timeTaken: Double){
