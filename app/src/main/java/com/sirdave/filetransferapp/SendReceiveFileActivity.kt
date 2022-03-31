@@ -48,7 +48,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
     private var dataInputStream: DataInputStream? = null
     private var dataOutputStream: DataOutputStream? = null
     private val allFiles = ArrayList<FileHandler>()
-    private var timeSentTaken = 0.0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,7 +78,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
     }
 
     private fun setUpRecyclerView(fileList: List<FileHandler>) {
-        Log.d(TAG, "setUpRecyclerView started")
         val adapter = FileRecyclerAdapter(fileList)
         recyclerView.adapter = adapter
         recyclerView.setHasFixedSize(true)
@@ -97,6 +95,10 @@ class SendReceiveFileActivity : AppCompatActivity() {
                 if (data!!.clipData != null) {
                     val count = data.clipData!!.itemCount
                     var currentItem = 0
+
+                    val startTime = System.currentTimeMillis()
+                    Log.d(TAG, "start time is $startTime")
+
                     while (currentItem < count) {
                         val uri = data.clipData!!.getItemAt(currentItem).uri
                         val fileInfo = getDataFromUri(uri)
@@ -104,18 +106,34 @@ class SendReceiveFileActivity : AppCompatActivity() {
 
                         currentItem += 1
                     }
-                    showFileTransferCompletedDialog(count, timeSentTaken)
-                    timeSentTaken = 0.0 // reset the time taken to 0
+
+                    val endTime = System.currentTimeMillis()
+                    Log.d(TAG, "end time is $endTime")
+                    val timeTaken = getTimeTaken(startTime, endTime)
+
+                    showFileTransferCompletedDialog(count, timeTaken)
                 }
                 else if (data.data != null) {
+                    val startTime = System.currentTimeMillis()
+                    Log.d(TAG, "start time is $startTime")
+
                     val uri = data.data!!
                     val fileInfo = getDataFromUri(uri)
                     sendFile(uri, fileInfo)
-                    showFileTransferCompletedDialog(1, timeSentTaken)
-                    timeSentTaken = 0.0 // reset the time taken to 0
+
+                    val endTime = System.currentTimeMillis()
+                    Log.d(TAG, "end time is $endTime")
+                    val timeTaken = getTimeTaken(startTime, endTime)
+
+                    showFileTransferCompletedDialog(1, timeTaken)
                 }
             }
         }
+    }
+
+    private fun getTimeTaken(startTime: Long, endTime: Long): Double {
+        val estimatedTime = endTime - startTime
+        return estimatedTime / 1000.0
     }
 
     private fun getDataFromUri(uri: Uri): Pair<String, Long> {
@@ -143,7 +161,7 @@ class SendReceiveFileActivity : AppCompatActivity() {
             var progress: Double
 
             val fileName = fileInfo.first
-            val startTime = System.currentTimeMillis()
+            //val startTime = System.nanoTime()
             Log.d(TAG, "File $fileName sent")
 
             // send file name
@@ -164,10 +182,6 @@ class SendReceiveFileActivity : AppCompatActivity() {
                 }
 
                 dataOutputStream!!.flush()
-
-                val estimatedTime = System.currentTimeMillis() - startTime
-                val estimatedTimeInSecs = estimatedTime / 1000.0
-                timeSentTaken += estimatedTimeInSecs
             }
             inputStream.close()
             hideProgressBar()
@@ -207,8 +221,8 @@ class SendReceiveFileActivity : AppCompatActivity() {
             clientSocket?.connect(port?.let { InetSocketAddress(ip, it) }, 5000)
             Log.d(TAG, "Socket Connected")
 
-            dataInputStream = DataInputStream(clientSocket?.getInputStream())
-            dataOutputStream = DataOutputStream(clientSocket?.getOutputStream())
+            dataInputStream = DataInputStream(BufferedInputStream(clientSocket?.getInputStream()))
+            dataOutputStream = DataOutputStream(BufferedOutputStream(clientSocket?.getOutputStream()))
 
             while (true) {
                 try {
